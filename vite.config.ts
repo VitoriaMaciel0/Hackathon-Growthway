@@ -17,6 +17,16 @@ export default defineConfig({
     },
   },
 
+  server: {
+    proxy: {
+      '/backend': {
+        target: 'http://api.simplificagov.com:8080',
+        changeOrigin: true,
+        rewrite: (requestPath) => requestPath.replace(/^\/backend/, ''),
+      },
+    },
+  },
+
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
 })

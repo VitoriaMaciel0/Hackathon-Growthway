@@ -12,7 +12,7 @@ export function LandingPage() {
       <header className="border-b border-gray-200 bg-white/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <img src={logoImage} alt="Flueent" className="h-12" />
+            <img src={logoImage} alt="Flueet" className="h-12" />
             <div className="flex items-center gap-4">
               <Link to="/login">
                 <Button variant="ghost">Entrar</Button>
@@ -61,7 +61,7 @@ export function LandingPage() {
               </div>
             </div>
             <div className="flex justify-center">
-              <img src={mascotImage} alt="Flueent AI Assistant" className="max-w-md w-full" />
+              <img src={mascotImage} alt="Flueet AI Assistant" className="max-w-md w-full" />
             </div>
           </div>
         </div>
@@ -71,7 +71,7 @@ export function LandingPage() {
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Por que escolher o Flueent?</h2>
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">Por que escolher o Flueet?</h2>
             <p className="text-xl text-gray-600">Tecnologia de ponta para acelerar seu aprendizado</p>
           </div>
 
@@ -269,7 +269,7 @@ export function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
-              <img src={logoImage} alt="Flueent" className="h-10 mb-4 brightness-0 invert" />
+              <img src={logoImage} alt="Flueet" className="h-10 mb-4 brightness-0 invert" />
               <p className="text-sm">
                 Tecnologia de IA para aprendizado de inglês corporativo
               </p>
@@ -300,7 +300,7 @@ export function LandingPage() {
             </div>
           </div>
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm">
-            <p>&copy; 2026 Flueent. Todos os direitos reservados.</p>
+            <p>&copy; 2026 Flueet. Todos os direitos reservados.</p>
           </div>
         </div>
       </footer>

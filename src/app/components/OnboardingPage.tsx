@@ -7,6 +7,8 @@ import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { Progress } from "./ui/progress";
 import { ChevronRight, ChevronLeft } from "lucide-react";
 import mascotImage from "../../assets/mascot.png";
+import { createProfile } from "../lib/flueetApi";
+import { loadUserId, saveProfileId } from "../lib/sessionStore";
 
 interface OnboardingData {
   nativeLanguage: string;
@@ -21,6 +23,7 @@ interface OnboardingData {
 export function OnboardingPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<OnboardingData>({
     nativeLanguage: "",
     targetLanguage: "",
@@ -34,12 +37,43 @@ export function OnboardingPage() {
   const totalSteps = 7;
   const progress = (step / totalSteps) * 100;
 
-  const handleNext = () => {
+  const handleNext = async () => {
+    if (isSubmitting) {
+      return;
+    }
+
     if (step < totalSteps) {
       setStep(step + 1);
     } else {
-      // Finalizar onboarding e ir para teste de voz
-      navigate("/voice-test");
+      const userId = loadUserId();
+      if (!userId) {
+        alert("Usuario nao encontrado. Faca login novamente.");
+        navigate("/login", { replace: true });
+        return;
+      }
+
+      setIsSubmitting(true);
+
+      try {
+        const profile = await createProfile({
+          user_id: userId,
+          native_language: formData.nativeLanguage,
+          target_language: formData.targetLanguage,
+          current_level: formData.currentLevel,
+          goal: formData.learningGoal,
+        });
+
+        if (profile.id) {
+          saveProfileId(profile.id);
+        }
+
+        // Finalizar onboarding e ir para diagnóstico inicial
+        navigate("/app", { replace: true });
+      } catch (error) {
+        alert((error as Error).message);
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -80,7 +114,7 @@ export function OnboardingPage() {
         <Card className="p-8 shadow-xl">
           {/* Header */}
           <div className="text-center mb-8">
-            <img src={mascotImage} alt="Flueent" className="h-32 mx-auto mb-4" />
+            <img src={mascotImage} alt="Flueet" className="h-32 mx-auto mb-4" />
             <h2 className="text-3xl font-bold mb-2">Vamos conhecer você!</h2>
             <p className="text-gray-600">
               Responda algumas perguntas para personalizarmos sua experiência
@@ -127,7 +161,7 @@ export function OnboardingPage() {
               <div>
                 <h3 className="text-xl font-semibold mb-4">Qual idioma você quer aprender?</h3>
                 <p className="text-sm text-gray-600 mb-4">
-                  O Flueent oferece 4 idiomas para você dominar no ambiente corporativo
+                  O Flueet oferece 4 idiomas para você dominar no ambiente corporativo
                 </p>
                 <RadioGroup value={formData.targetLanguage} onValueChange={(value) => updateFormData("targetLanguage", value)}>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -287,10 +321,10 @@ export function OnboardingPage() {
             </Button>
             <Button
               onClick={handleNext}
-              disabled={!isStepValid()}
+              disabled={!isStepValid() || isSubmitting}
               className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
             >
-              {step === totalSteps ? "Finalizar" : "Próximo"}
+              {step === totalSteps ? (isSubmitting ? "Salvando..." : "Finalizar") : "Próximo"}
               <ChevronRight className="w-4 h-4 ml-2" />
             </Button>
           </div>

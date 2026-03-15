@@ -5,24 +5,56 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card } from "./ui/card";
 import logoImage from "../../assets/login.png";
+import { getProfilesByUser, listUsers } from "../lib/flueetApi";
+import {
+  saveProfileId,
+  saveUserEmail,
+  saveUserId,
+  saveUserName,
+} from "../lib/sessionStore";
 
 export function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleLogin = (e: React.FormEvent) => {
-  e.preventDefault();
-  localStorage.setItem("flueent-auth", "true");
-  navigate("/app", { replace: true });
-};
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      const users = await listUsers(0, 500);
+      const foundUser = users.find((user) => user.email.toLowerCase() === email.trim().toLowerCase());
+
+      if (!foundUser) {
+        alert("Usuario nao encontrado. Crie uma conta primeiro.");
+        return;
+      }
+
+      saveUserId(foundUser.id);
+      saveUserName(foundUser.name);
+      saveUserEmail(foundUser.email);
+      localStorage.setItem("flueet-auth", "true");
+
+      const profiles = await getProfilesByUser(foundUser.id);
+      const firstProfile = profiles[0];
+      if (firstProfile?.id) {
+        saveProfileId(firstProfile.id);
+        navigate("/app", { replace: true });
+        return;
+      }
+
+      navigate("/onboarding", { replace: true });
+    } catch (error) {
+      alert((error as Error).message);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-100 via-blue-100 to-indigo-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <img src={logoImage} alt="Flueent" className="h-20 mx-auto mb-4" />
+          <img src={logoImage} alt="Flueet" className="h-20 mx-auto mb-4" />
           <p className="text-gray-600">Seu assistente de IA para inglês corporativo</p>
         </div>
 
@@ -89,7 +121,7 @@ export function LoginPage() {
 
             <Link to="/landing">
               <Button variant="outline" className="w-full">
-                Conheça o Flueent
+                Conheça o Flueet
               </Button>
             </Link>
           </div>

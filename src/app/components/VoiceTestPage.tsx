@@ -132,7 +132,7 @@ const handleFinish = () => {
         <Card className="p-8 shadow-xl">
           {/* Header */}
           <div className="text-center mb-8">
-            <img src={mascotImage} alt="Flueent" className="h-24 mx-auto mb-4" />
+            <img src={mascotImage} alt="Flueet" className="h-24 mx-auto mb-4" />
             <h2 className="text-3xl font-bold mb-2">Teste de Voz</h2>
             <p className="text-gray-600">
               Vamos avaliar seu nível de inglês falado. Responda as perguntas em voz alta.

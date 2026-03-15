@@ -2,9 +2,9 @@ import { createBrowserRouter, redirect, type LoaderFunction } from "react-router
 import { Root } from "./components/Root";
 import { HomePage } from "./components/HomePage";
 import { ConversationPage } from "./components/ConversationPage";
-import { LessonsPage } from "./components/LessonsPage";
-import { ProgressPage } from "./components/ProgressPage";
-import { FeedbackPage } from "./components/FeedbackPage";
+import { LessonsPage } from "./components/LessonsPage.tsx";
+import { ProgressPage } from "./components/ProgressPage.tsx";
+import { FeedbackPage } from "./components/FeedbackPage.tsx";
 import { LoginPage } from "./components/LoginPage";
 import { SignUpPage } from "./components/SignUpPage";
 import { LandingPage } from "./components/LandingPage";
@@ -28,7 +28,7 @@ export const router = createBrowserRouter([
   {
     path: "/onboarding",
     loader: (() => {
-      if (localStorage.getItem("flueent-auth") !== "true") {
+      if (localStorage.getItem("flueet-auth") !== "true") {
         return redirect("/");
       }
       return null;
@@ -38,7 +38,7 @@ export const router = createBrowserRouter([
   {
     path: "/voice-test",
     loader: (() => {
-      if (localStorage.getItem("flueent-auth") !== "true") {
+      if (localStorage.getItem("flueet-auth") !== "true") {
         return redirect("/");
       }
       return null;
@@ -52,7 +52,7 @@ export const router = createBrowserRouter([
   {
     path: "/app",
     loader: (() => {
-      if (localStorage.getItem("flueent-auth") !== "true") {
+      if (localStorage.getItem("flueet-auth") !== "true") {
         return redirect("/");
       }
       return null;

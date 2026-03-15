@@ -1,223 +1,564 @@
-import { TrendingUp, Award, Target, Calendar, Flame, Clock } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
+import {
+  CheckCircle2,
+  Clock,
+  Compass,
+  FileAudio,
+  PlayCircle,
+  Target,
+  TrendingUp,
+} from "lucide-react";
+import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Progress } from "./ui/progress";
-import { Badge } from "./ui/badge";
+import {
+  completePlanItem,
+  createPlan,
+  createPlanItem,
+  getPlanItems,
+  getPlansByProfile,
+  getProfile,
+  unlockPlanItem,
+  updateSession,
+  type PlanItemRecord,
+} from "../lib/flueetApi";
+import {
+  loadLatestSession,
+  loadOpenAiKey,
+  loadPlanId,
+  loadProfileId,
+  saveLatestSession,
+  savePlanId,
+  type LatestSessionData,
+} from "../lib/sessionStore";
+import {
+  generateCorrectionPlanFromDiagnostic,
+  generateSessionFeedback,
+} from "../lib/openai";
 
-interface Achievement {
-  id: string;
-  title: string;
-  description: string;
-  earned: boolean;
-  date?: string;
+function planSessionTypeLabel(sessionType: PlanItemRecord["session_type"]): string {
+  if (sessionType === "pronunciation_drill") {
+    return "Pronuncia";
+  }
+  if (sessionType === "vocabulary") {
+    return "Vocabulario";
+  }
+  return "Conversacao";
 }
 
-const achievements: Achievement[] = [
-  {
-    id: "1",
-    title: "Primeiro Passo",
-    description: "Complete sua primeira lição",
-    earned: true,
-    date: "10/03/2026",
-  },
-  {
-    id: "2",
-    title: "Conversador",
-    description: "Envie 50 mensagens na conversação",
-    earned: true,
-    date: "12/03/2026",
-  },
-  {
-    id: "3",
-    title: "Dedicado",
-    description: "Estude por 7 dias consecutivos",
-    earned: true,
-    date: "14/03/2026",
-  },
-  {
-    id: "4",
-    title: "Mestre das Palavras",
-    description: "Aprenda 100 novas palavras",
-    earned: false,
-  },
-  {
-    id: "5",
-    title: "Profissional",
-    description: "Complete 20 lições",
-    earned: false,
-  },
-];
+function genericSessionTypeLabel(
+  sessionType: PlanItemRecord["session_type"] | LatestSessionData["sessionType"],
+): string {
+  if (sessionType === "diagnostic") {
+    return "Diagnostico";
+  }
+  return planSessionTypeLabel(sessionType as PlanItemRecord["session_type"]);
+}
 
-const weeklyActivity = [
-  { day: "Seg", minutes: 45 },
-  { day: "Ter", minutes: 30 },
-  { day: "Qua", minutes: 60 },
-  { day: "Qui", minutes: 20 },
-  { day: "Sex", minutes: 55 },
-  { day: "Sáb", minutes: 40 },
-  { day: "Dom", minutes: 35 },
-];
-
-const skillsProgress = [
-  { skill: "Vocabulário", progress: 75, level: "Intermediário" },
-  { skill: "Gramática", progress: 60, level: "Intermediário" },
-  { skill: "Conversação", progress: 85, level: "Avançado" },
-  { skill: "Escrita", progress: 70, level: "Intermediário" },
-  { skill: "Compreensão", progress: 80, level: "Avançado" },
-];
+function minutesFromDurationSeconds(durationSeconds?: number): number {
+  if (!durationSeconds) {
+    return 0;
+  }
+  return Math.max(1, Math.round(durationSeconds / 60));
+}
 
 export function ProgressPage() {
-  const totalMinutes = weeklyActivity.reduce((sum, day) => sum + day.minutes, 0);
-  const currentStreak = 7;
+  const navigate = useNavigate();
+
+  const [targetLanguage, setTargetLanguage] = useState("English");
+  const [currentLevel, setCurrentLevel] = useState("B1");
+  const [items, setItems] = useState<PlanItemRecord[]>([]);
+  const [activePlanId, setActivePlanId] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [syncStatus, setSyncStatus] = useState<string>("");
+  const [latestSession, setLatestSession] = useState<LatestSessionData | null>(() => loadLatestSession());
+
+  const profileId = (import.meta.env.VITE_DEFAULT_PROFILE_ID || loadProfileId() || "").trim();
+  const openAiApiKey = (import.meta.env.VITE_OPENAI_API_KEY || loadOpenAiKey() || "").trim();
+
+  useEffect(() => {
+    const syncLatestSession = async () => {
+      const session = latestSession;
+      if (!session || session.postSessionSyncDone) {
+        return;
+      }
+
+      setSyncStatus("Sincronizando ultima sessao...");
+
+      try {
+        const isLocalSession =
+          session.sessionId.startsWith("local-") || session.profileId === "local-profile";
+
+        const endedAt = session.endedAt ?? new Date().toISOString();
+        const durationSeconds =
+          session.durationSeconds ||
+          Math.max(0, Math.round((Date.now() - new Date(session.startedAt).getTime()) / 1000));
+
+        let feedbackRaw = session.feedbackRaw?.trim() ?? "";
+        if (!feedbackRaw && openAiApiKey) {
+          feedbackRaw = await generateSessionFeedback(openAiApiKey, {
+            sessionType: session.sessionType,
+            durationSeconds,
+            transcript: session.transcript,
+          });
+        }
+
+        if (!isLocalSession && feedbackRaw) {
+          await updateSession(session.sessionId, {
+            ended_at: endedAt,
+            feedback_raw: feedbackRaw,
+          });
+        }
+
+        const updatedSession: LatestSessionData = {
+          ...session,
+          endedAt,
+          durationSeconds,
+          feedbackRaw,
+        };
+
+        if (!isLocalSession && session.sessionType === "diagnostic" && openAiApiKey && feedbackRaw) {
+          const planDraft = await generateCorrectionPlanFromDiagnostic(openAiApiKey, feedbackRaw);
+          const createdPlanId = await createPlan({
+            user_language_profile_id: session.profileId,
+            diagnostic_session_id: session.sessionId,
+            plan_json: planDraft,
+          });
+
+          for (const item of planDraft) {
+            await createPlanItem({
+              plan_id: createdPlanId,
+              order_index: item.order_index,
+              title: item.title,
+              focus: item.focus,
+              session_type: item.session_type,
+              duration_minutes: item.duration_minutes,
+              unlocked: item.unlocked,
+            });
+          }
+
+          savePlanId(createdPlanId);
+          updatedSession.planId = createdPlanId;
+          updatedSession.planGenerated = true;
+        }
+
+        if (!isLocalSession && session.sessionType !== "diagnostic") {
+          if (session.planItemId) {
+            await completePlanItem(session.planItemId, session.sessionId);
+          }
+
+          if (session.nextPlanItemId) {
+            await unlockPlanItem(session.nextPlanItemId);
+          }
+        }
+
+        updatedSession.postSessionSyncDone = true;
+        saveLatestSession(updatedSession);
+        setLatestSession(updatedSession);
+        setSyncStatus("Sessao sincronizada com sucesso.");
+      } catch (syncError) {
+        setSyncStatus((syncError as Error).message || "Nao foi possivel sincronizar a ultima sessao.");
+      }
+    };
+
+    syncLatestSession();
+  }, [latestSession, openAiApiKey]);
+
+  useEffect(() => {
+    const loadProgress = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        if (!profileId) {
+          setItems([]);
+          setActivePlanId("");
+          setIsLoading(false);
+          return;
+        }
+
+        const profile = await getProfile(profileId);
+        setTargetLanguage(profile.target_language || "English");
+        setCurrentLevel(profile.current_level || "B1");
+
+        let resolvedPlanId = (import.meta.env.VITE_DEFAULT_PLAN_ID || loadPlanId() || "").trim();
+        if (!resolvedPlanId) {
+          const plans = await getPlansByProfile(profileId);
+          resolvedPlanId = plans[0]?.id ?? "";
+          if (resolvedPlanId) {
+            savePlanId(resolvedPlanId);
+          }
+        }
+
+        setActivePlanId(resolvedPlanId);
+
+        if (!resolvedPlanId) {
+          setItems([]);
+          return;
+        }
+
+        const planItems = await getPlanItems(resolvedPlanId);
+        setItems(planItems.sort((a, b) => a.order_index - b.order_index));
+      } catch (loadError) {
+        setError((loadError as Error).message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadProgress();
+  }, [profileId, latestSession?.planId, latestSession?.postSessionSyncDone]);
+
+  const completedCount = items.filter((item) => Boolean(item.completed_session_id)).length;
+  const totalCount = items.length;
+  const progressPercent = totalCount ? Math.round((completedCount / totalCount) * 100) : 0;
+  const nextItem = items.find((item) => !item.completed_session_id && item.unlocked);
+
+  const completedMinutes = items
+    .filter((item) => Boolean(item.completed_session_id))
+    .reduce((sum, item) => sum + item.duration_minutes, 0);
+  const latestMinutes = minutesFromDurationSeconds(latestSession?.durationSeconds);
+  const practicedMinutes = completedMinutes + latestMinutes;
+  const avgSessionMinutes = completedCount ? Math.round(completedMinutes / completedCount) : latestMinutes;
+
+  const completedPronunciation = items.filter(
+    (item) => item.completed_session_id && item.session_type === "pronunciation_drill",
+  ).length;
+  const completedVocabulary = items.filter(
+    (item) => item.completed_session_id && item.session_type === "vocabulary",
+  ).length;
+  const completedConversation = items.filter(
+    (item) => item.completed_session_id && item.session_type === "free_conversation",
+  ).length;
+  const completedTotalByType = completedPronunciation + completedVocabulary + completedConversation;
+
+  const transcriptLines = latestSession?.transcript?.length ?? 0;
+  const transcriptPreview = (latestSession?.transcript ?? []).slice(-3);
+
+  const achievements = [
+    {
+      title: "Primeira sessao",
+      description: "Concluir a primeira sessao da jornada.",
+      unlocked: completedCount >= 1,
+    },
+    {
+      title: "Ritmo consistente",
+      description: "Acumular pelo menos 30 minutos de pratica.",
+      unlocked: practicedMinutes >= 30,
+    },
+    {
+      title: "Metade da trilha",
+      description: "Chegar a 50% de conclusao do plano.",
+      unlocked: progressPercent >= 50,
+    },
+    {
+      title: "Reta final",
+      description: "Chegar a 80% de conclusao do plano.",
+      unlocked: progressPercent >= 80,
+    },
+  ];
+
+  const startDiagnostic = () => {
+    if (!profileId) {
+      navigate("/onboarding", { replace: true });
+      return;
+    }
+
+    navigate("/app/conversation", {
+      state: {
+        sessionType: "diagnostic",
+        title: "Diagnostico inicial",
+        focus: "Avaliacao geral de pronuncia, vocabulario e fluencia",
+        profileId,
+      },
+    });
+  };
+
+  const startPlanSession = (item: PlanItemRecord) => {
+    const currentIndex = items.findIndex((entry) => entry.id === item.id);
+    const next = currentIndex >= 0 ? items[currentIndex + 1] : undefined;
+
+    navigate("/app/conversation", {
+      state: {
+        sessionType: item.session_type,
+        title: item.title,
+        focus: item.focus,
+        itemId: item.id,
+        nextItemId: next?.id,
+        planId: activePlanId,
+        profileId,
+      },
+    });
+  };
+
+  const continueNextSession = () => {
+    if (!nextItem) {
+      startDiagnostic();
+      return;
+    }
+    startPlanSession(nextItem);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-[calc(100vh-6rem)] bg-gradient-to-b from-slate-50 to-white">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <Card className="p-10 text-center text-slate-600 border-slate-200/80 shadow-sm">
+            Carregando progresso...
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-[calc(100vh-6rem)] bg-gradient-to-b from-slate-50 to-white">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <Card className="p-10 text-center border-red-200 bg-red-50/60 shadow-sm">
+            <p className="text-red-700 mb-4">{error}</p>
+            <Button onClick={() => navigate(0)} variant="outline">
+              Tentar novamente
+            </Button>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  if (!profileId) {
+    return (
+      <div className="min-h-[calc(100vh-6rem)] bg-gradient-to-b from-slate-50 to-white">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <Card className="p-10 text-center border-slate-200/80 shadow-sm space-y-4">
+            <h2 className="text-3xl font-bold text-slate-900">Configure seu perfil</h2>
+            <p className="text-slate-600">Precisamos do onboarding para montar seu progresso.</p>
+            <Button onClick={() => navigate("/onboarding", { replace: true })}>Ir para onboarding</Button>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">Seu Progresso</h2>
-        <p className="text-gray-600">Acompanhe sua evolução e conquistas</p>
-      </div>
+    <div className="min-h-[calc(100vh-6rem)] bg-gradient-to-b from-slate-50 via-slate-50 to-white">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <Card className="mb-8 p-6 md:p-7 border-slate-200/80 bg-white shadow-[0_18px_42px_-24px_rgba(15,23,42,0.35)]">
+          <h2 className="text-3xl font-bold text-slate-900 mb-2">Seu progresso</h2>
+          <p className="text-slate-600 mb-4">{targetLanguage} · {currentLevel}</p>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <Card className="p-6 bg-gradient-to-br from-blue-600 to-blue-700 text-white">
-          <div className="flex items-center justify-between mb-2">
-            <Flame className="w-8 h-8" />
-            <span className="text-3xl font-bold">{currentStreak}</span>
-          </div>
-          <p className="text-sm text-blue-100">Dias de Sequência</p>
-        </Card>
-
-        <Card className="p-6 bg-gradient-to-br from-green-600 to-green-700 text-white">
-          <div className="flex items-center justify-between mb-2">
-            <Award className="w-8 h-8" />
-            <span className="text-3xl font-bold">12</span>
-          </div>
-          <p className="text-sm text-green-100">Lições Completas</p>
-        </Card>
-
-        <Card className="p-6 bg-gradient-to-br from-purple-600 to-purple-700 text-white">
-          <div className="flex items-center justify-between mb-2">
-            <Target className="w-8 h-8" />
-            <span className="text-3xl font-bold">85%</span>
-          </div>
-          <p className="text-sm text-purple-100">Taxa de Acurácia</p>
-        </Card>
-
-        <Card className="p-6 bg-gradient-to-br from-orange-600 to-orange-700 text-white">
-          <div className="flex items-center justify-between mb-2">
-            <Clock className="w-8 h-8" />
-            <span className="text-3xl font-bold">{totalMinutes}</span>
-          </div>
-          <p className="text-sm text-orange-100">Minutos Esta Semana</p>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        {/* Weekly Activity */}
-        <Card className="p-6">
-          <div className="flex items-center gap-2 mb-6">
-            <Calendar className="w-5 h-5 text-blue-600" />
-            <h3 className="text-xl font-semibold">Atividade Semanal</h3>
-          </div>
-          <div className="space-y-4">
-            {weeklyActivity.map((day, index) => (
-              <div key={index}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-medium text-gray-700">{day.day}</span>
-                  <span className="text-sm text-gray-600">{day.minutes} min</span>
-                </div>
-                <Progress value={(day.minutes / 60) * 100} className="h-2" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
+            <Card className="p-4 border-slate-200/80">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-500">Sessoes concluidas</span>
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
               </div>
-            ))}
-          </div>
-        </Card>
+              <p className="mt-2 text-2xl font-bold text-slate-900">{completedCount}/{totalCount || 0}</p>
+            </Card>
 
-        {/* Skills Progress */}
-        <Card className="p-6">
-          <div className="flex items-center gap-2 mb-6">
-            <TrendingUp className="w-5 h-5 text-green-600" />
-            <h3 className="text-xl font-semibold">Habilidades</h3>
-          </div>
-          <div className="space-y-4">
-            {skillsProgress.map((item, index) => (
-              <div key={index}>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-medium text-gray-900">{item.skill}</span>
-                  <Badge
-                    variant="outline"
-                    className={
-                      item.level === "Avançado"
-                        ? "bg-green-50 text-green-700 border-green-200"
-                        : "bg-yellow-50 text-yellow-700 border-yellow-200"
-                    }
-                  >
-                    {item.level}
-                  </Badge>
-                </div>
-                <Progress value={item.progress} className="h-2" />
-                <p className="text-xs text-gray-500 mt-1">{item.progress}%</p>
+            <Card className="p-4 border-slate-200/80">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-500">Minutos praticados</span>
+                <Clock className="w-4 h-4 text-sky-600" />
               </div>
-            ))}
+              <p className="mt-2 text-2xl font-bold text-slate-900">{practicedMinutes}</p>
+            </Card>
+
+            <Card className="p-4 border-slate-200/80">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-500">Status do plano</span>
+                <Target className="w-4 h-4 text-indigo-600" />
+              </div>
+              <p className="mt-2 text-2xl font-bold text-slate-900">{progressPercent}%</p>
+            </Card>
+
+            <Card className="p-4 border-slate-200/80">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-500">Media por sessao</span>
+                <TrendingUp className="w-4 h-4 text-violet-600" />
+              </div>
+              <p className="mt-2 text-2xl font-bold text-slate-900">{avgSessionMinutes || 0} min</p>
+            </Card>
+          </div>
+
+          <div className="flex items-center justify-between text-sm text-slate-600 mb-2">
+            <span>Andamento da trilha</span>
+            <span className="font-semibold">{progressPercent}%</span>
+          </div>
+          <Progress value={progressPercent} className="h-2" />
+
+          {syncStatus && <p className="mt-3 text-sm text-slate-600">{syncStatus}</p>}
+
+          {nextItem && (
+            <p className="mt-3 text-sm text-slate-600">
+              Proxima sessao: <span className="font-semibold text-slate-800">{nextItem.title}</span>
+            </p>
+          )}
+
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Button onClick={continueNextSession} className="bg-sky-600 hover:bg-sky-700">
+              <PlayCircle className="w-4 h-4 mr-2" />
+              {nextItem ? "Continuar jornada" : "Iniciar diagnostico"}
+            </Button>
+            <Button onClick={() => navigate("/app/conversation")} variant="outline">
+              Sessao livre
+            </Button>
           </div>
         </Card>
-      </div>
 
-      {/* Achievements */}
-      <Card className="p-6">
-        <div className="flex items-center gap-2 mb-6">
-          <Award className="w-5 h-5 text-yellow-600" />
-          <h3 className="text-xl font-semibold">Conquistas</h3>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {achievements.map((achievement) => (
-            <div
-              key={achievement.id}
-              className={`p-4 rounded-lg border-2 ${
-                achievement.earned
-                  ? "bg-yellow-50 border-yellow-300"
-                  : "bg-gray-50 border-gray-200 opacity-60"
-              }`}
-            >
-              <div className="flex items-start justify-between mb-2">
-                <div
-                  className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                    achievement.earned
-                      ? "bg-yellow-400 text-yellow-900"
-                      : "bg-gray-300 text-gray-500"
-                  }`}
-                >
-                  <Award className="w-6 h-6" />
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          <Card className="xl:col-span-2 p-6 border-slate-200/80 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <Target className="w-4 h-4 text-indigo-600" />
+              <h3 className="text-lg font-semibold text-slate-900">Distribuicao de treino</h3>
+            </div>
+
+            {completedTotalByType === 0 ? (
+              <p className="text-sm text-slate-600">
+                Complete algumas sessoes para ver sua distribuicao por habilidade.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <div className="flex items-center justify-between text-sm text-slate-700 mb-1">
+                    <span>Pronuncia</span>
+                    <span className="font-medium">{completedPronunciation}</span>
+                  </div>
+                  <Progress
+                    value={(completedPronunciation / completedTotalByType) * 100}
+                    className="h-2"
+                  />
                 </div>
-                {achievement.earned && (
-                  <Badge className="bg-green-600 text-white">Conquistado</Badge>
+
+                <div>
+                  <div className="flex items-center justify-between text-sm text-slate-700 mb-1">
+                    <span>Vocabulario</span>
+                    <span className="font-medium">{completedVocabulary}</span>
+                  </div>
+                  <Progress
+                    value={(completedVocabulary / completedTotalByType) * 100}
+                    className="h-2"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between text-sm text-slate-700 mb-1">
+                    <span>Conversacao</span>
+                    <span className="font-medium">{completedConversation}</span>
+                  </div>
+                  <Progress
+                    value={(completedConversation / completedTotalByType) * 100}
+                    className="h-2"
+                  />
+                </div>
+              </div>
+            )}
+          </Card>
+
+          <Card className="p-6 border-slate-200/80 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <Compass className="w-4 h-4 text-sky-600" />
+              <h3 className="text-lg font-semibold text-slate-900">Foco recomendado</h3>
+            </div>
+
+            {nextItem ? (
+              <div className="space-y-3">
+                <p className="text-sm text-slate-500">Proxima etapa da jornada</p>
+                <p className="font-semibold text-slate-900">{nextItem.title}</p>
+                <p className="text-sm text-slate-700">{nextItem.focus}</p>
+                <p className="text-xs text-slate-500">
+                  Tipo: {planSessionTypeLabel(nextItem.session_type)} · {nextItem.duration_minutes} min
+                </p>
+                <Button onClick={() => startPlanSession(nextItem)} className="w-full bg-sky-600 hover:bg-sky-700">
+                  Iniciar agora
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-slate-600">
+                  Nao ha uma proxima etapa destravada no momento.
+                </p>
+                <Button onClick={startDiagnostic} className="w-full bg-sky-600 hover:bg-sky-700">
+                  Novo diagnostico
+                </Button>
+              </div>
+            )}
+          </Card>
+
+          <Card className="xl:col-span-2 p-6 border-slate-200/80 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <FileAudio className="w-4 h-4 text-violet-600" />
+              <h3 className="text-lg font-semibold text-slate-900">Ultima sessao</h3>
+            </div>
+
+            {!latestSession ? (
+              <p className="text-sm text-slate-600">Ainda nao encontramos uma sessao recente salva.</p>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <Card className="p-3 border-slate-200">
+                    <p className="text-xs text-slate-500">Tipo</p>
+                    <p className="font-semibold text-slate-900 mt-1">
+                      {genericSessionTypeLabel(latestSession.sessionType)}
+                    </p>
+                  </Card>
+                  <Card className="p-3 border-slate-200">
+                    <p className="text-xs text-slate-500">Duracao</p>
+                    <p className="font-semibold text-slate-900 mt-1">
+                      {minutesFromDurationSeconds(latestSession.durationSeconds)} min
+                    </p>
+                  </Card>
+                  <Card className="p-3 border-slate-200">
+                    <p className="text-xs text-slate-500">Falas transcritas</p>
+                    <p className="font-semibold text-slate-900 mt-1">{transcriptLines}</p>
+                  </Card>
+                </div>
+
+                {transcriptPreview.length > 0 && (
+                  <div className="rounded-xl border border-slate-200 p-4">
+                    <p className="text-xs uppercase tracking-wide text-slate-500 mb-2">Trecho recente</p>
+                    <div className="space-y-2">
+                      {transcriptPreview.map((entry, index) => (
+                        <p key={`${entry.at}-${index}`} className="text-sm text-slate-700 leading-relaxed">
+                          <span className="font-semibold text-slate-900 mr-1">
+                            {entry.role === "assistant" ? "AI:" : "Voce:"}
+                          </span>
+                          {entry.text}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
-              <h4 className="font-semibold text-gray-900 mb-1">{achievement.title}</h4>
-              <p className="text-sm text-gray-600 mb-2">{achievement.description}</p>
-              {achievement.earned && achievement.date && (
-                <p className="text-xs text-gray-500">{achievement.date}</p>
-              )}
-            </div>
-          ))}
-        </div>
-      </Card>
+            )}
+          </Card>
 
-      {/* Goals Section */}
-      <Card className="mt-8 p-6 bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-200">
-        <h3 className="font-semibold text-indigo-900 mb-3">🎯 Metas da Semana</h3>
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-indigo-800">Completar 5 lições</span>
-            <span className="text-sm font-semibold text-indigo-900">3/5</span>
-          </div>
-          <Progress value={60} className="h-2" />
-          <div className="flex items-center justify-between mt-3">
-            <span className="text-sm text-indigo-800">Praticar 150 minutos</span>
-            <span className="text-sm font-semibold text-indigo-900">{totalMinutes}/150</span>
-          </div>
-          <Progress value={(totalMinutes / 150) * 100} className="h-2" />
+          <Card className="p-6 border-slate-200/80 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <h3 className="text-lg font-semibold text-slate-900">Conquistas</h3>
+            </div>
+
+            <div className="space-y-3">
+              {achievements.map((achievement) => (
+                <div
+                  key={achievement.title}
+                  className={`rounded-lg border p-3 ${
+                    achievement.unlocked
+                      ? "border-emerald-200 bg-emerald-50/70"
+                      : "border-slate-200 bg-slate-50"
+                  }`}
+                >
+                  <p className="text-sm font-semibold text-slate-900">{achievement.title}</p>
+                  <p className="text-xs text-slate-600 mt-1">{achievement.description}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
         </div>
-      </Card>
+      </div>
     </div>
   );
 }

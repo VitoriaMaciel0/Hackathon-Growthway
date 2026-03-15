@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from "react-router";
-import { MessageSquare, BookOpen, TrendingUp, Home, MessageCircle } from "lucide-react";
+import { MessageSquare, BookOpen, TrendingUp, Home } from "lucide-react";
 
 export function Root() {
   const location = useLocation();
@@ -10,18 +10,18 @@ export function Root() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-slate-100">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+      <header className="px-4 sm:px-6 lg:px-8 pt-4 pb-2">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-between h-16 md:h-[72px] px-4 sm:px-6 rounded-full border border-white/70 bg-white/90 backdrop-blur-md shadow-[0_18px_40px_-22px_rgba(15,23,42,0.45)]">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center">
                 <MessageSquare className="w-6 h-6 text-white" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  Flueent
+                  Flueet
                 </h1>
                 <p className="text-xs text-gray-500">Corporate English AI</p>
               </div>
@@ -29,9 +29,9 @@ export function Root() {
             <nav className="hidden md:flex items-center gap-6">
               <Link
                 to="/app"
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-full transition-colors ${
                   isActive("/app") && location.pathname === "/app"
-                    ? "bg-blue-100 text-blue-700"
+                    ? "bg-blue-100 text-blue-700 shadow-sm"
                     : "text-gray-600 hover:bg-gray-100"
                 }`}
               >
@@ -40,9 +40,9 @@ export function Root() {
               </Link>
               <Link
                 to="/app/conversation"
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-full transition-colors ${
                   isActive("/app/conversation")
-                    ? "bg-blue-100 text-blue-700"
+                    ? "bg-blue-100 text-blue-700 shadow-sm"
                     : "text-gray-600 hover:bg-gray-100"
                 }`}
               >
@@ -51,9 +51,9 @@ export function Root() {
               </Link>
               <Link
                 to="/app/lessons"
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-full transition-colors ${
                   isActive("/app/lessons")
-                    ? "bg-blue-100 text-blue-700"
+                    ? "bg-blue-100 text-blue-700 shadow-sm"
                     : "text-gray-600 hover:bg-gray-100"
                 }`}
               >
@@ -62,25 +62,14 @@ export function Root() {
               </Link>
               <Link
                 to="/app/progress"
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-full transition-colors ${
                   isActive("/app/progress")
-                    ? "bg-blue-100 text-blue-700"
+                    ? "bg-blue-100 text-blue-700 shadow-sm"
                     : "text-gray-600 hover:bg-gray-100"
                 }`}
               >
                 <TrendingUp className="w-4 h-4" />
                 <span>Progresso</span>
-              </Link>
-              <Link
-                to="/app/feedback"
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
-                  isActive("/app/feedback")
-                    ? "bg-blue-100 text-blue-700"
-                    : "text-gray-600 hover:bg-gray-100"
-                }`}
-              >
-                <MessageCircle className="w-4 h-4" />
-                <span>Feedback</span>
               </Link>
             </nav>
           </div>
@@ -127,15 +116,6 @@ export function Root() {
           >
             <TrendingUp className="w-5 h-5" />
             <span className="text-xs">Progresso</span>
-          </Link>
-          <Link
-            to="/app/feedback"
-            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg ${
-              isActive("/app/feedback") ? "text-blue-700" : "text-gray-600"
-            }`}
-          >
-            <MessageCircle className="w-5 h-5" />
-            <span className="text-xs">Feedback</span>
           </Link>
         </div>
       </nav>

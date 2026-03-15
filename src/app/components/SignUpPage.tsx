@@ -5,6 +5,8 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card } from "./ui/card";
 import logoImage from "../../assets/login.png";
+import { getOrCreateUserByEmail, getProfilesByUser } from "../lib/flueetApi";
+import { saveProfileId, saveUserEmail, saveUserId, saveUserName } from "../lib/sessionStore";
 
 export function SignUpPage() {
   const navigate = useNavigate();
@@ -15,16 +17,36 @@ export function SignUpPage() {
     confirmPassword: "",
   });
 
-  const handleSignUp = (e: React.FormEvent) => {
-  e.preventDefault();
-  if (formData.password !== formData.confirmPassword) {
-    alert("As senhas não coincidem!");
-    return;
-  }
-  localStorage.setItem("flueent-auth", "true");
-  // Opcional: salvar dados do usuário
-  navigate("/onboarding", { replace: true });
-};
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (formData.password !== formData.confirmPassword) {
+      alert("As senhas não coincidem!");
+      return;
+    }
+
+    try {
+      const user = await getOrCreateUserByEmail({
+        name: formData.name.trim(),
+        email: formData.email.trim().toLowerCase(),
+      });
+
+      saveUserId(user.id);
+      saveUserName(user.name);
+      saveUserEmail(user.email);
+      localStorage.setItem("flueet-auth", "true");
+
+      const profiles = await getProfilesByUser(user.id);
+      if (profiles[0]?.id) {
+        saveProfileId(profiles[0].id);
+        navigate("/app", { replace: true });
+        return;
+      }
+
+      navigate("/onboarding", { replace: true });
+    } catch (error) {
+      alert((error as Error).message);
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -38,7 +60,7 @@ export function SignUpPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <img src={logoImage} alt="Flueent" className="h-20 mx-auto mb-4" />
+          <img src={logoImage} alt="Flueet" className="h-20 mx-auto mb-4" />
           <p className="text-gray-600">Comece sua jornada de aprendizado hoje</p>
         </div>
 
@@ -121,7 +143,7 @@ export function SignUpPage() {
 
             <Link to="/landing">
               <Button variant="outline" className="w-full">
-                Saiba mais sobre o Flueent
+                Saiba mais sobre o Flueet
               </Button>
             </Link>
           </div>
