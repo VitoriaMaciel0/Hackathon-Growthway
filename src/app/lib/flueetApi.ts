@@ -1,13 +1,6 @@
-const DIRECT_API_BASE_URL = "https://api.simplificagov.com";
-const DEFAULT_API_BASE_URL = import.meta.env.DEV ? "/backend" : DIRECT_API_BASE_URL;
+const DEFAULT_API_BASE_URL = "/backend";
 
-const ENV_API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").trim();
-const EFFECTIVE_ENV_API_BASE_URL =
-  !import.meta.env.DEV && (ENV_API_BASE_URL === "/backend" || ENV_API_BASE_URL === "/api/proxy")
-    ? DIRECT_API_BASE_URL
-    : ENV_API_BASE_URL;
-
-const RAW_API_BASE_URL = (EFFECTIVE_ENV_API_BASE_URL || DEFAULT_API_BASE_URL).trim();
+const RAW_API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL).trim();
 const API_BASE_URL = RAW_API_BASE_URL.endsWith("/")
   ? RAW_API_BASE_URL.slice(0, -1)
   : RAW_API_BASE_URL;
@@ -24,11 +17,14 @@ async function request<T>(
   path: string,
   body?: unknown,
 ): Promise<T> {
+  const headers: Record<string, string> = {};
+  if (body !== undefined) {
+    headers["Content-Type"] = "application/json";
+  }
+
   const response = await fetch(buildApiUrl(path), {
     method,
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers,
     body: body ? JSON.stringify(body) : undefined,
   });
 
