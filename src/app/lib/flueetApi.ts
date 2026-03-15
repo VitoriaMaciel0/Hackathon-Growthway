@@ -1,8 +1,11 @@
-const DEFAULT_API_BASE_URL = import.meta.env.DEV ? "/backend" : "/api/proxy";
+const DIRECT_API_BASE_URL = "https://api.simplificagov.com";
+const DEFAULT_API_BASE_URL = import.meta.env.DEV ? "/backend" : DIRECT_API_BASE_URL;
 
 const ENV_API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").trim();
 const EFFECTIVE_ENV_API_BASE_URL =
-  !import.meta.env.DEV && ENV_API_BASE_URL === "/backend" ? "/api/proxy" : ENV_API_BASE_URL;
+  !import.meta.env.DEV && (ENV_API_BASE_URL === "/backend" || ENV_API_BASE_URL === "/api/proxy")
+    ? DIRECT_API_BASE_URL
+    : ENV_API_BASE_URL;
 
 const RAW_API_BASE_URL = (EFFECTIVE_ENV_API_BASE_URL || DEFAULT_API_BASE_URL).trim();
 const API_BASE_URL = RAW_API_BASE_URL.endsWith("/")
