@@ -1,98 +1,93 @@
-# Flueet
+## 🖥️ Frontend Stack
 
-Flueet é uma aplicação web voltada para o **treinamento de comunicação corporativa em idiomas utilizando Inteligência Artificial**.
+O frontend do **Flueet** foi desenvolvido utilizando tecnologias modernas voltadas para aplicações web rápidas e escaláveis.
 
-A plataforma foi projetada para ajudar profissionais a desenvolver habilidades de conversação utilizadas no ambiente empresarial, como **reuniões, apresentações, negociações e discussões técnicas**.
+A aplicação utiliza **React + TypeScript + Vite** para garantir uma experiência de desenvolvimento eficiente, tipagem segura e alto desempenho no carregamento da interface.
 
-Por meio de interações com IA, os usuários podem praticar situações reais de trabalho, receber feedback e acompanhar sua evolução no aprendizado de idiomas voltados ao contexto corporativo.
+### Tecnologias utilizadas
+
+- **React** — construção da interface e componentes da aplicação  
+- **TypeScript** — tipagem estática para maior segurança e manutenção do código  
+- **Vite** — bundler e servidor de desenvolvimento rápido  
+- **Client tipado para API REST** — comunicação estruturada com os serviços de backend e IA  
+- **Deploy na Vercel** — hospedagem da aplicação web com suporte a proxy server-side
+
+O frontend é responsável por toda a experiência do usuário, incluindo autenticação, fluxo de diagnóstico, visualização de progresso e interação com o sistema de treinamento.
 
 ---
 
-# 🚀 Funcionalidades
+# 🤖 Experiência com IA (Interface)
 
-A plataforma oferece funcionalidades focadas no desenvolvimento da comunicação profissional:
+Embora a lógica de inteligência artificial seja executada nos serviços de backend, o **frontend do Flueet é responsável por orquestrar toda a experiência de interação com a IA**.
 
-### 👤 Autenticação de Usuários
-- Cadastro de novos usuários
-- Login para acesso à plataforma
+A interface permite que o usuário realize uma sessão de diagnóstico por voz e visualize os resultados gerados pela análise.
 
-### 🌎 Escolha de Idioma
-O usuário seleciona o idioma que deseja treinar antes de iniciar a experiência.
+### 🎤 Sessão de diagnóstico
 
-Exemplos de idiomas:
-- Inglês
-- Mandarim
-- Francês
-- Espanhol
+Durante o diagnóstico inicial, o usuário interage por voz com um agente conversacional. A interface captura a interação e exibe a conversa em tempo real.
 
-### 🤖 Teste Inicial com IA
-Após o login, o usuário realiza um **teste de conversação com Inteligência Artificial** para avaliar sua capacidade de comunicação no idioma escolhido.
+Após a sessão, o sistema apresenta ao usuário um **relatório estruturado de desempenho**, incluindo:
 
-### 📊 Definição de Nível
-Com base na interação com a IA, o sistema define automaticamente o nível do usuário, como por exemplo:
+- análise de **pronúncia**
+- avaliação de **fluência**
+- uso de **vocabulário**
+- correções de **gramática**
 
-- Iniciante
-- Intermediário
-- Avançado
+Essas informações são exibidas na interface em formato de **scorecards e feedback textual**, permitindo ao usuário entender claramente seus pontos fortes e pontos de melhoria.
 
-### 📚 Progresso em Lições
-A plataforma apresenta um sistema de acompanhamento onde o usuário pode visualizar:
+---
 
+# 📚 Plano de Aprendizado Personalizado
+
+Com base no diagnóstico inicial, o sistema gera um **currículo de aprendizado personalizado**, que é apresentado ao usuário diretamente na interface da plataforma.
+
+O frontend organiza esse plano em um fluxo visual de sessões de prática, normalmente entre **6 e 8 atividades**, cada uma focada em corrigir um aspecto específico da comunicação detectado durante o diagnóstico.
+
+Cada sessão apresentada na interface possui:
+
+- objetivo pedagógico específico
+- foco em uma habilidade detectada no diagnóstico
+- ordem progressiva de dificuldade
+- acompanhamento de conclusão
+
+A progressão não é genérica: cada usuário recebe um caminho único baseado no seu desempenho.
+
+---
+
+# 📊 Acompanhamento de Progresso
+
+O frontend também apresenta as telas de acompanhamento da evolução do usuário, permitindo visualizar:
+
+- sessões concluídas
 - progresso nas lições
-- evolução nas habilidades de comunicação
-- atividades concluídas
+- histórico de atividades
+- feedback recebido ao longo do tempo
 
-### 💬 Feedback Inteligente
-Após interações ou atividades, o usuário recebe feedback sobre:
-
-- clareza da comunicação
-- uso do idioma
-- melhorias sugeridas
+Essas informações ajudam o usuário a acompanhar sua evolução dentro da plataforma.
 
 ---
 
-# 🧠 Objetivo do Projeto
+# 🧠 Evolução Contínua do Treinamento
 
-O objetivo do Flueet é facilitar o desenvolvimento de **fluência em comunicação profissional em diferentes idiomas**, utilizando **Inteligência Artificial para simular situações reais do ambiente corporativo**.
+A cada sessão concluída, novos feedbacks são exibidos na interface, refletindo a evolução do usuário ao longo do uso da plataforma.
 
-Dessa forma, profissionais podem treinar conversas importantes do dia a dia empresarial de forma prática e acessível.
+Com isso, o usuário consegue visualizar:
 
----
+- melhorias alcançadas
+- padrões de erros recorrentes
+- próximos pontos de foco no aprendizado
 
-# 🛠️ Tecnologias Utilizadas
-
-Este projeto foi desenvolvido com tecnologias modernas de desenvolvimento web:
-
-- **React**
-- **Vite**
-- **TypeScript**
-- **Node.js**
-- **Inteligência Artificial para conversação**
-- **HTML5**
-- **CSS3**
+Essa abordagem cria um ciclo contínuo de prática, análise e evolução dentro da experiência do produto.
 
 ---
 
-# 📦 Instalação
+# 🎯 Papel do Frontend no Flueet
 
-Clone o repositório:
+O frontend do Flueet funciona como a **camada de experiência e interação do usuário**, conectando a interface de treinamento com os serviços de análise e geração de conteúdo pedagógico.
 
-git clone https://github.com/seu-usuario/flueet.git
+Ele é responsável por:
 
-Entre na pasta do projeto:
-
-cd flueet
-
-Instale as dependências:
-
-npm install
----
-▶️ Rodando o Projeto
-
-Para iniciar o ambiente de desenvolvimento execute:
-
-npm run dev
-
-Após iniciar, o projeto estará disponível no navegador no endereço indicado pelo Vite, normalmente:
-
-http://localhost:5173
+- gerenciar o fluxo de uso da plataforma
+- apresentar os resultados gerados pela IA
+- organizar o plano de aprendizado
+- acompanhar a evolução do usuário ao longo do tempo
