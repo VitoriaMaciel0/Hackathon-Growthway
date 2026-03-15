@@ -1,6 +1,4 @@
-const DEFAULT_API_BASE_URL = import.meta.env.DEV
-  ? "/backend"
-  : "http://api.simplificagov.com:8080";
+const DEFAULT_API_BASE_URL = "/backend";
 
 const RAW_API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL).trim();
 const API_BASE_URL = RAW_API_BASE_URL.endsWith("/")
