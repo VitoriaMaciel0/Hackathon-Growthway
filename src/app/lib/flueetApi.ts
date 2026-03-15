@@ -1,6 +1,10 @@
-const DEFAULT_API_BASE_URL = "/backend";
+const DEFAULT_API_BASE_URL = import.meta.env.DEV ? "/backend" : "/api/proxy";
 
-const RAW_API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL).trim();
+const ENV_API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").trim();
+const EFFECTIVE_ENV_API_BASE_URL =
+  !import.meta.env.DEV && ENV_API_BASE_URL === "/backend" ? "/api/proxy" : ENV_API_BASE_URL;
+
+const RAW_API_BASE_URL = (EFFECTIVE_ENV_API_BASE_URL || DEFAULT_API_BASE_URL).trim();
 const API_BASE_URL = RAW_API_BASE_URL.endsWith("/")
   ? RAW_API_BASE_URL.slice(0, -1)
   : RAW_API_BASE_URL;
