@@ -7,6 +7,18 @@ const API_BASE_URL = RAW_API_BASE_URL.endsWith("/")
 
 function buildApiUrl(path: string): string {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+
+  // In Vercel production, call the serverless proxy directly to avoid rewrite mismatch issues.
+  if (!import.meta.env.DEV && API_BASE_URL === "/backend") {
+    const target = new URL(normalizedPath, "https://proxy.local");
+    const proxy = new URL("/api/proxy", window.location.origin);
+    proxy.searchParams.set("path", target.pathname);
+    target.searchParams.forEach((value, key) => {
+      proxy.searchParams.append(key, value);
+    });
+    return proxy.toString();
+  }
+
   return `${API_BASE_URL}${normalizedPath}`;
 }
 
