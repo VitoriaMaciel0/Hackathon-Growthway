@@ -5,14 +5,16 @@ function normalizeBaseUrl(value) {
   return raw.endsWith("/") ? raw.slice(0, -1) : raw;
 }
 
-function buildTargetUrl(req, backendBaseUrl) {
-  const pathParam = req.query.path;
-  const path = Array.isArray(pathParam)
-    ? pathParam.join("/")
-    : String(pathParam || "");
+function normalizePath(value) {
+  const raw = Array.isArray(value) ? value.join("/") : String(value || "");
+  if (!raw) {
+    return "/";
+  }
+  return raw.startsWith("/") ? raw : `/${raw}`;
+}
 
-  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  const target = new URL(`${backendBaseUrl}${normalizedPath}`);
+function buildTargetUrl(req, backendBaseUrl) {
+  const target = new URL(`${backendBaseUrl}${normalizePath(req.query.path)}`);
 
   for (const [key, value] of Object.entries(req.query || {})) {
     if (key === "path") {
@@ -21,7 +23,10 @@ function buildTargetUrl(req, backendBaseUrl) {
 
     if (Array.isArray(value)) {
       value.forEach((item) => target.searchParams.append(key, String(item)));
-    } else if (value !== undefined) {
+      continue;
+    }
+
+    if (value !== undefined) {
       target.searchParams.append(key, String(value));
     }
   }
@@ -29,7 +34,7 @@ function buildTargetUrl(req, backendBaseUrl) {
   return target;
 }
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   try {
     const backendBaseUrl = normalizeBaseUrl(process.env.BACKEND_API_BASE_URL);
     const targetUrl = buildTargetUrl(req, backendBaseUrl);
@@ -54,8 +59,8 @@ module.exports = async (req, res) => {
 
     const response = await fetch(targetUrl.toString(), requestInit);
     const responseBody = await response.arrayBuffer();
-
     const contentType = response.headers.get("content-type");
+
     if (contentType) {
       res.setHeader("content-type", contentType);
     }
@@ -64,7 +69,10 @@ module.exports = async (req, res) => {
   } catch (error) {
     res.status(502).json({
       error: "proxy_error",
-      message: error instanceof Error ? error.message : "Erro ao encaminhar requisicao para backend.",
+      message:
+        error instanceof Error
+          ? error.message
+          : "Erro ao encaminhar requisicao para o backend.",
     });
   }
-};
+}

@@ -1,8 +1,12 @@
 {
   "rewrites": [
     {
+      "source": "/api/proxy/:path*",
+      "destination": "/api/proxy?path=:path*"
+    },
+    {
       "source": "/backend/:path*",
-      "destination": "http://api.simplificagov.com:8080/:path*"
+      "destination": "/api/proxy/:path*"
     }
   ]
 }
